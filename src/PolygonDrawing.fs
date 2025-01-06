@@ -63,7 +63,24 @@ For FinishPolygon mesages:
  - if there is a current polygon, reset the current polygon to None and add the current polygon as a new elemnet to finishedPolygons.
 *)
 let updateModel (msg : Msg) (model : Model) =
-    model
+    match msg with
+    | AddPoint point -> 
+        match model.currentPolygon with 
+        | None ->
+            { model with currentPolygon = Some [point] }
+        | Some polyline ->
+            { model with 
+                currentPolygon = Some (point :: polyline)
+                future = None}
+
+    | FinishPolygon ->
+        match model.currentPolygon with
+        | None ->
+            model
+        | Some polyline ->
+            { model with
+                finishedPolygons = polyline :: model.finishedPolygons
+                currentPolygon = None }
 
 // wraps an update function with undo/redo.
 let addUndoRedo (updateFunction : Msg -> Model -> Model) (msg : Msg) (model : Model) =
@@ -74,12 +91,14 @@ let addUndoRedo (updateFunction : Msg -> Model -> Model) (msg : Msg) (model : Mo
         // update the mouse position and create a new model.
         { model with mousePos = p }
     | Undo -> 
-        // TODO implement undo logics, HINT: restore the model stored in past, and replace the current
-        // state with it.
-        model
+        // restore the model stored in past, and replace the current state with it.
+        match model.past with
+        | None -> model
+        | Some pastModel -> {pastModel with future = Some model}
     | Redo -> 
-        // TODO: same as undo
-        model
+        match model.future with 
+        | None -> model
+        | Some futureModel -> futureModel
     | _ -> 
         // use the provided update function for all remaining messages
         { updateFunction msg model with past = Some model }
